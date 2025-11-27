@@ -20,8 +20,12 @@ openssl req -new -x509 \
   -out MOK.crt
 
 echo ""
-echo "🔏 Importing key into MOK..."
-mokutil --import /root/secureboot/MOK.crt
+echo "� Converting certificate to DER format..."
+openssl x509 -in MOK.crt -outform DER -out MOK.der
+
+echo ""
+echo "�🔏 Importing key into MOK..."
+mokutil --import /root/secureboot/MOK.der
 
 echo "👉 After reboot, select 'Enroll MOK' → 'Continue' → Enter password"
 echo "⚠️ System will reboot after install"

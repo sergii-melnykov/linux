@@ -10,7 +10,7 @@ dnf install -y dnf-plugins-core
 dnf install -y fedora-workstation-repositories
 
 # Enable Google Chrome repository
-dnf config-manager --set-enabled google-chrome
+dnf config-manager setopt google-chrome.enabled=1
 
 # Install Google Chrome
 dnf install -y google-chrome-stable
