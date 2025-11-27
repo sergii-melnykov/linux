@@ -16,4 +16,4 @@ This repository contains a complete automated setup script for Fedora, including
 ## 🚀 Quick Install (Secure Installer)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/fedora-setup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sergii-melnykov/linux/main/fedora/install.sh | bash
