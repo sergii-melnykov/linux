@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-URL="https://raw.githubusercontent.com/sergii-melnykov/linux/refs/heads/main/fedora/install.sh"
+URL="https://raw.githubusercontent.com/sergii-melnykov/linux/refs/heads/main/fedora/setup.sh"
 EXPECTED_HASH="f1d8dd5bdb7b4deceeb756f7d907dafb9911d9f3dfeb1a4a2ce5f27cce374540"
 TMP_FILE="/tmp/setup.sh"
 
