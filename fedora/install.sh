@@ -2,7 +2,7 @@
 set -e
 
 URL="https://raw.githubusercontent.com/YOUR_USERNAME/fedora-setup/main/setup.sh"
-EXPECTED_HASH="186ece0c552a664b43a27ade49f72c9c2b6921a9aca05c9e2ef557f8cf052612"
+EXPECTED_HASH="f1d8dd5bdb7b4deceeb756f7d907dafb9911d9f3dfeb1a4a2ce5f27cce374540"
 TMP_FILE="/tmp/setup.sh"
 
 echo "🔽 Downloading setup.sh..."
