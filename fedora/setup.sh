@@ -40,8 +40,6 @@ git config --global init.defaultBranch main
 git config --global pull.rebase false
 git config --global core.editor "vim"
 git config --global color.ui auto
-git config --global user.email "melnykov.sergii.88@gmail.com"
-git config --global user.name "Sergii Melnykov"
 
 
 
