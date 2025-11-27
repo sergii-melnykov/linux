@@ -21,4 +21,4 @@ if [[ "$DOWNLOADED_HASH" != "$EXPECTED_HASH" ]]; then
 fi
 
 echo "✔ Hash valid. Executing setup.sh..."
-# sudo bash "$TMP_FILE"
+sudo bash "$TMP_FILE"
