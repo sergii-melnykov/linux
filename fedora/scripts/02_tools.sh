@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🔧 Installing gcc, kernel-devel, kernel-headers, make, bzip2, perl, wget, unzip, xclip..."
-dnf install gcc kernel-devel kernel-headers make bzip2 perl wget unzip xclip -y
+
+echo "📦 Installing additional tools..."
+dnf install wget unzip xclip -y 
 
 echo "⚙️  Configuring pbcopy and pbpaste aliases for all users..."
 
@@ -36,3 +37,4 @@ while IFS=: read -r username _ uid _ _ home _; do
         add_aliases_to_user "$username" "$home"
     fi
 done < /etc/passwd
+
