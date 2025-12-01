@@ -22,6 +22,9 @@ if [ ! -d "$SCRIPTS_DIR" ]; then
     exit 1
 fi
 
+# Initialize failed scripts array
+FAILED_SCRIPTS=()
+
 # Iterate through scripts in order
 for script in "$SCRIPTS_DIR"/*.sh; do
     if [ -f "$script" ]; then
