@@ -3,7 +3,7 @@
 # It continues execution even if individual scripts fail.
 
 echo "====================================="
-echo "🚀 FEDORA FULL DEV SETUP STARTED (MODULAR)"
+echo "🚀 SENT OS SETUP STARTED (MODULAR)"
 echo "====================================="
 
 # Check for sudo
@@ -21,6 +21,9 @@ if [ ! -d "$SCRIPTS_DIR" ]; then
     echo "Error: scripts directory not found at $SCRIPTS_DIR"
     exit 1
 fi
+
+# Initialize array to track failed scripts
+FAILED_SCRIPTS=()
 
 # Iterate through scripts in order
 for script in "$SCRIPTS_DIR"/*.sh; do

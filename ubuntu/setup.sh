@@ -3,7 +3,7 @@
 # It continues execution even if individual scripts fail.
 
 echo "====================================="
-echo "🚀 FEDORA FULL DEV SETUP STARTED (MODULAR)"
+echo "🚀 UBUNTU FULL DEV SETUP STARTED (MODULAR)"
 echo "====================================="
 
 # Check for sudo
@@ -22,13 +22,21 @@ if [ ! -d "$SCRIPTS_DIR" ]; then
     exit 1
 fi
 
+# Initialize failed scripts array
+FAILED_SCRIPTS=()
+
+# Count total scripts for progress tracking
+TOTAL_SCRIPTS=$(find "$SCRIPTS_DIR" -maxdepth 1 -name "*.sh" -type f | wc -l)
+CURRENT_SCRIPT=0
+
 # Iterate through scripts in order
 for script in "$SCRIPTS_DIR"/*.sh; do
     if [ -f "$script" ]; then
+        CURRENT_SCRIPT=$((CURRENT_SCRIPT + 1))
         script_name=$(basename "$script")
         echo ""
         echo "-----------------------------------------------------------"
-        echo "▶ Running $script_name..."
+        echo "▶ Running $script_name [$CURRENT_SCRIPT/$TOTAL_SCRIPTS]..."
         echo "-----------------------------------------------------------"
         
         # Run the script and capture exit code
@@ -55,5 +63,5 @@ if [ ${#FAILED_SCRIPTS[@]} -ne 0 ]; then
 else
     echo "All scripts executed successfully."
 fi
-echo "Reboot required to finish VirtualBox installation (if installed)."
+echo "A system reboot may be required to complete some installations."
 echo "====================================="
