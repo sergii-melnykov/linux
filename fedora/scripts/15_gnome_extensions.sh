@@ -3,9 +3,9 @@ set -e
 
 echo "🧩 Installing GNOME Extensions and Extensions Manager..."
 
-# Install GNOME Extensions app (Extension Manager)
-echo "Installing Extension Manager..."
-dnf install -y gnome-extensions-app
+# Install GNOME Extensions app (Extension Manager) and other essential GNOME tools
+echo "Installing GNOME Tweaks, Dconf Editor, and Extension Manager..."
+dnf install -y gnome-extensions-app gnome-tweaks dconf-editor
 
 # Install dependencies for installing extensions via CLI
 echo "Installing gnome-shell-extension-installer dependencies..."
@@ -24,7 +24,12 @@ install_extension_for_user() {
     
     if [ -n "$SUDO_USER" ]; then
         echo "Installing $extension_name (ID: $extension_id) for user $SUDO_USER..."
+        # The installer downloads and installs to the user's local extensions directory
         sudo -u "$SUDO_USER" gnome-shell-extension-installer "$extension_id" --yes
+        
+        # Note: Programmatically enabling extensions often requires a shell restart 
+        # or can be done via gsettings, but gnome-extensions enable requires the UUID,
+        # not the ID. The installer usually handles the download.
     else
         echo "⚠️  Running as root - skipping extension installation"
         echo "   To install extensions, run as your user:"

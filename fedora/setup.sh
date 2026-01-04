@@ -22,8 +22,9 @@ if [ ! -d "$SCRIPTS_DIR" ]; then
     exit 1
 fi
 
-# Initialize failed scripts array
+# Initialize arrays to track results
 FAILED_SCRIPTS=()
+SUCCESSFUL_SCRIPTS=()
 
 # Iterate through scripts in order
 for script in "$SCRIPTS_DIR"/*.sh; do
@@ -38,9 +39,9 @@ for script in "$SCRIPTS_DIR"/*.sh; do
         # We do NOT use set -e in this loop so we can continue on error
         if bash "$script"; then
             echo "✅ $script_name completed successfully."
+            SUCCESSFUL_SCRIPTS+=("$script_name")
         else
             echo "❌ $script_name FAILED. Continuing to next script..."
-            # Optional: Add to a list of failed scripts to report at the end
             FAILED_SCRIPTS+=("$script_name")
         fi
     fi
@@ -49,14 +50,26 @@ done
 echo ""
 echo "====================================="
 echo "🎉 SETUP PROCESS COMPLETED!"
+
+if [ ${#SUCCESSFUL_SCRIPTS[@]} -ne 0 ]; then
+    echo "✅ The following scripts were successful:"
+    for success in "${SUCCESSFUL_SCRIPTS[@]}"; do
+        echo "   - $success"
+    done
+fi
+
 if [ ${#FAILED_SCRIPTS[@]} -ne 0 ]; then
+    echo ""
     echo "⚠️  The following scripts encountered errors:"
     for failed in "${FAILED_SCRIPTS[@]}"; do
         echo "   - $failed"
     done
     echo "Please check the output above for details."
 else
-    echo "All scripts executed successfully."
+    if [ ${#SUCCESSFUL_SCRIPTS[@]} -ne 0 ]; then
+        echo ""
+        echo "All scripts executed successfully."
+    fi
 fi
 echo "Reboot required to finish VirtualBox installation (if installed)."
 echo "====================================="

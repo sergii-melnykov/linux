@@ -1,9 +1,12 @@
 #!/bin/bash
 set -e
 
-echo "Installing Ollama..."
+if command -v ollama &> /dev/null; then
+    echo "Already installed."
+else
+    echo "Installing Ollama..."
+    # Install/Update Ollama
+    curl -fsSL https://ollama.com/install.sh | sh
+fi
 
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-echo "Ollama installation complete."
+echo "Ollama operation complete."
