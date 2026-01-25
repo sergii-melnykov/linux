@@ -14,3 +14,4 @@ rm minikube-linux-amd64
 
 echo "✅ minikube installed successfully."
 echo "💡 To start minikube, run: minikube start"
+echo "💡 For NVIDIA GPU support, run: minikube start --driver=docker --gpus=all"
