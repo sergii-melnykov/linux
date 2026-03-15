@@ -81,7 +81,8 @@ else
 
     __fedora_prompt_exit() {
         local ec="$?"
-        [ "$ec" -ne 0 ] && printf "\\[\\e[1;31m\\][%s]\\[\\e[0m\\] " "$ec"
+        # Use readline markers from command substitution to avoid literal \[ \] output.
+        [ "$ec" -ne 0 ] && printf "\001\e[1;31m\002[%s]\001\e[0m\002 " "$ec"
     }
 
     PS1='$(__fedora_prompt_exit)\[\e[1;34m\]\u@\h\[\e[0m\]:\[\e[1;36m\]\w\[\e[0m\]$(__fedora_git_branch)\n\$ '
