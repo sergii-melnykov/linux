@@ -5,42 +5,52 @@ A complete, modular automated setup for Fedora workstations. This setup includes
 ## 📦 What's Included
 
 ### System & Repositories
+
 - **System Updates** - Full system update via DNF
 - **RPM Fusion** - Free and non-free repositories for additional software
 
 ### Development Tools
+
 - **Git** - Version control with user configuration
 - **Node.js** - Via NVM (Node Version Manager) with latest LTS
 - **Python** - Python 3 and pip package manager
 - **VS Code** - Microsoft's code editor
 
 ### Containerization & Orchestration
+
 - **Docker Engine** - Container runtime with Docker Compose plugin
 - **kubectl** - Kubernetes command-line tool
 - **Minikube** - Local Kubernetes cluster
 - **Skaffold** - Kubernetes development workflow tool
 
 ### Virtualization
+
 - **VirtualBox** - With Secure Boot MOK key setup and kernel module signing
 
 ### Applications
+
 - **Google Chrome** - Web browser
 - **Google Antigravity** - AI-powered IDE
+- **Kiro IDE** - AWS agentic AI IDE (local DNF repo, updatable via `dnf update`)
 - **Viber** - Messaging application
 - **Telegram** - Messaging application
 
 ### Desktop Environment
+
 - **GNOME Extensions** - Including:
   - Vitals (system monitoring)
   - Sound Input & Output Device Chooser
   - Tiling Shell (window management)
 
 ### Graphics & AI
+
 - **NVIDIA Drivers** - Automatic detection and installation for NVIDIA GPUs
 - **GPU Application Config** - Configures Chrome and VS Code to use discrete GPU
 - **Ollama** - Local AI model runner
+- **Qdrant** - Vector database with FastEmbed GPU-accelerated embeddings (auto-starts on boot)
 
 ### Security
+
 - **SSH** - SSH key generation and configuration
 
 ---
@@ -48,6 +58,7 @@ A complete, modular automated setup for Fedora workstations. This setup includes
 ## 🚀 Quick Install
 
 ### Option 1: Local Install
+
 ```bash
 git clone https://github.com/sergii-melnykov/linux.git
 cd linux/fedora
@@ -58,7 +69,7 @@ sudo bash setup.sh
 
 ## 📋 Script Execution Order
 
-The scripts run in numerical order (01-20). The order is optimized for dependencies:
+The scripts run in numerical order (01-26). The order is optimized for dependencies:
 
 1. **01_update.sh** - System updates
 2. **02_rpm_fusion.sh** - Third-party repositories
@@ -80,27 +91,35 @@ The scripts run in numerical order (01-20). The order is optimized for dependenc
 18. **18_nvidia_drivers.sh** - GPU drivers (auto-detects NVIDIA)
 19. **19_gpu_app_config.sh** - GPU application preferences
 20. **20_ollama.sh** - AI model runner
+21. **25_qdrant.sh** - Vector database with GPU-accelerated FastEmbed embeddings
+22. **26_kiro.sh** - Kiro IDE (local DNF repo from official tarball)
 
 ---
 
 ## ⚙️ Features
 
 ### Modular Design
+
 Each component is in a separate script in the `scripts/` directory. You can:
+
 - Run individual scripts manually
 - Comment out scripts you don't need
 - Add your own custom scripts
 
 ### Error Resilience
+
 The main `setup.sh` script continues execution even if individual scripts fail, reporting all failures at the end.
 
 ### User-Aware Installation
+
 Scripts detect when run with `sudo` and configure settings for the actual user (not root), including:
+
 - Docker group membership
 - GNOME extensions
 - GPU application preferences
 
 ### Hardware Detection
+
 - **NVIDIA GPU**: Automatically detects and skips driver installation if no NVIDIA GPU is present
 - **Secure Boot**: VirtualBox setup includes MOK key generation for Secure Boot systems
 
@@ -117,6 +136,7 @@ Scripts detect when run with `sudo` and configure settings for the actual user (
 ## 📝 Post-Installation Notes
 
 ### Required Actions
+
 1. **Reboot** - Required for:
    - VirtualBox kernel modules
    - NVIDIA drivers
@@ -132,6 +152,7 @@ Scripts detect when run with `sudo` and configure settings for the actual user (
    - Enable/configure installed extensions
 
 ### Verification Commands
+
 ```bash
 # Docker
 docker --version
@@ -147,6 +168,19 @@ minikube version
 
 # NVIDIA (if applicable)
 nvidia-smi
+
+# Kiro IDE
+rpm -q kiro
+kiro --version
+```
+
+### Kiro IDE Updates
+
+Kiro is installed from a **local DNF repository** built from the official tarball CDN (AWS does not provide an official DNF repo). A daily systemd timer refreshes the repo; you can also sync manually before upgrading:
+
+```bash
+sudo kiro-repo-sync
+sudo dnf update kiro
 ```
 
 ---
