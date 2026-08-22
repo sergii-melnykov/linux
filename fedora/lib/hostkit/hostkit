@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# hostkit - agnostic host infrastructure CLI (cluster, TLS, exposure, tunnels).
+set -euo pipefail
+
+HOSTKIT_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# shellcheck source=lib/common.sh
+source "${HOSTKIT_ROOT}/lib/common.sh"
+
+hostkit_dispatch() {
+  local cmd="${1:-}"
+  shift || true
+
+  case "${cmd}" in
+    cluster)
+      # shellcheck source=lib/cluster.sh
+      source "${HOSTKIT_ROOT}/lib/cluster.sh"
+      hostkit_cluster "$@"
+      ;;
+    cert)
+      # shellcheck source=lib/cert.sh
+      source "${HOSTKIT_ROOT}/lib/cert.sh"
+      hostkit_cert "$@"
+      ;;
+    expose)
+      # shellcheck source=lib/expose.sh
+      source "${HOSTKIT_ROOT}/lib/expose.sh"
+      hostkit_expose "$@"
+      ;;
+    tunnel)
+      # shellcheck source=lib/tunnel.sh
+      source "${HOSTKIT_ROOT}/lib/tunnel.sh"
+      hostkit_tunnel "$@"
+      ;;
+    help|-h|--help|"")
+      hostkit_show_help
+      ;;
+    version|-V)
+      echo "hostkit 1.0.0"
+      ;;
+    *)
+      hostkit_error "Unknown command: ${cmd}"
+      hostkit_show_help
+      exit 1
+      ;;
+  esac
+}
+
+hostkit_dispatch "$@"

@@ -3,7 +3,7 @@ set -e
 
 
 echo "📦 Installing additional tools..."
-dnf install wget unzip xclip -y 
+dnf install wget unzip xclip jq yq -y
 
 echo "⚙️  Configuring pbcopy and pbpaste aliases for all users..."
 

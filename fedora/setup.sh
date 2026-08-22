@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Main setup script that runs modular scripts in scripts/ directory
+# Main setup script that runs modular scripts in scripts/setup/ directory
 # It continues execution even if individual scripts fail.
 
 echo "====================================="
@@ -15,7 +15,7 @@ fi
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-SCRIPTS_DIR="$SCRIPT_DIR/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR/scripts/setup"
 
 if [ ! -d "$SCRIPTS_DIR" ]; then
     echo "Error: scripts directory not found at $SCRIPTS_DIR"

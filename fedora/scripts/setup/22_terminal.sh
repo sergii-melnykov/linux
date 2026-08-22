@@ -12,7 +12,7 @@ INPUT_END_MARKER="# <<< fedora-advanced-terminal <<<"
 
 read -r -d '' BASH_BLOCK << 'EOF' || true
 # >>> fedora-advanced-terminal >>>
-# Managed by fedora/scripts/22_terminal.sh
+# Managed by fedora/scripts/setup/22_terminal.sh
 case $- in
     *i*) ;;
     *) return ;;
