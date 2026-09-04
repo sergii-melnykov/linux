@@ -110,14 +110,31 @@ cp k8s/helm/app-skeleton/values-prod-secrets.yaml.example k8s/helm/app-skeleton/
 
 The local registry is already running after `setup.sh` (started by `28_registry.sh`). No VM required — k3s runs as a systemd service on bare metal.
 
-#### Expose an app on the LAN
+#### Expose a docker-compose app via ingress-nginx
 
-Use **hostkit** to open a port in firewalld and print LAN URLs:
+Use **hostkit** to route a docker-compose application (listening on a host port) through the same `ingress-nginx` and Cloudflare Tunnel as regular k8s apps:
 
 ```bash
-# Open TCP port 8080 and print LAN URLs
-sudo hostkit expose port 8080
-sudo hostkit expose port 443 tcp --remove   # close port
+# Wire myapp (host port 8081) to myapp.example.com via ingress-nginx
+hostkit expose docker-app --name myapp --port 8081 --host myapp.example.com
+
+# With TLS secret and custom namespace
+hostkit expose docker-app --name myapp --port 8081 --host myapp.example.com \
+  --tls-secret myapp-tls --namespace apps
+
+# Remove the generated Service/Endpoints/Ingress
+hostkit expose docker-app --name myapp --port 8081 --host myapp.example.com --remove
+```
+
+Requirements:
+- k3s cluster running with ingress-nginx (`sudo hostkit cluster up`)
+- docker-compose app must listen on `0.0.0.0:PORT`, not `127.0.0.1` only
+- Add the hostname to your Cloudflare Tunnel (`hostkit tunnel install --hostname ...`)
+
+Local test before tunnel:
+
+```bash
+curl -vk --resolve myapp.example.com:443:127.0.0.1 https://myapp.example.com/
 ```
 
 #### hostkit — cluster, TLS, tunnels
@@ -130,8 +147,7 @@ Installed by `30_hostkit.sh` to `/usr/local/bin/hostkit`. App-agnostic; any proj
 | `hostkit cert local` | mkcert for internal/LAN hostnames → optional k8s TLS secret |
 | `hostkit cert acme` | Let's Encrypt via Porkbun DNS-01 (requires `/etc/hostkit/acme.env`) |
 | `hostkit cert ingress-default` | ingress-nginx catch-all cert for HTTPS by IP |
-| `hostkit expose port` | firewalld + LAN URL hints |
-| `hostkit expose hosts` | Managed `/etc/hosts` block |
+| `hostkit expose docker-app` | Wire docker-compose app (host port) into ingress-nginx |
 | `hostkit tunnel install` | cloudflared systemd service (token or config mode) |
 
 **Cloudflare Tunnel** (after `31_cloudflared.sh`):
@@ -239,13 +255,12 @@ The scripts in `scripts/setup/` run in numerical order (00-31, skipping 29). The
 
 ### Modular Design
 
-Setup scripts live in `scripts/setup/` and run via `setup.sh` in numeric order. Operational tasks (expose ports, start cluster, TLS, tunnels) use **hostkit** after setup.
+Setup scripts live in `scripts/setup/` and run via `setup.sh` in numeric order. Operational tasks (start cluster, TLS, tunnels) use **hostkit** after setup.
 
 You can:
 
 - Run the full setup: `sudo bash setup.sh`
 - Run a single setup component: `sudo ./scripts/setup/12_docker.sh`
-- Expose a port on the LAN: `sudo hostkit expose port 8080`
 - Comment out or remove setup scripts you don't need
 - Add your own numbered scripts to `scripts/setup/` (e.g., `32_custom.sh`)
 

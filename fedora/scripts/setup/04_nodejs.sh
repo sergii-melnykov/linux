@@ -10,9 +10,9 @@ if [ -n "$SUDO_USER" ]; then
     # Install nvm as user
     sudo -u "$SUDO_USER" bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash"
 
-    # Install Node.js LTS and pnpm as user
+    # Install Node.js LTS, pnpm, and yarn as user
     # We need to source nvm.sh within the same bash session
-    sudo -u "$SUDO_USER" bash -c "export NVM_DIR='$USER_HOME/.nvm'; [ -s '$USER_HOME/.nvm/nvm.sh' ] && . '$USER_HOME/.nvm/nvm.sh'; nvm install --lts; nvm use --lts; npm install -g pnpm"
+    sudo -u "$SUDO_USER" bash -c "export NVM_DIR='$USER_HOME/.nvm'; [ -s '$USER_HOME/.nvm/nvm.sh' ] && . '$USER_HOME/.nvm/nvm.sh'; nvm install --lts; nvm use --lts; npm install -g pnpm yarn"
 else
     echo "⚠️  SUDO_USER not set. Installing for root (not recommended for development environments)..."
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
@@ -20,7 +20,7 @@ else
     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
     nvm install --lts
     nvm use --lts
-    npm install -g pnpm
+    npm install -g pnpm yarn
 fi
 
 echo "✅ nvm and Node.js LTS installed successfully."

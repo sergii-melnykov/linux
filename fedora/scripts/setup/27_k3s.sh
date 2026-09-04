@@ -19,8 +19,6 @@ configure_firewalld() {
     firewall-cmd --permanent --add-source=10.42.0.0/16 || true   # pod CIDR
     firewall-cmd --permanent --add-source=10.43.0.0/16 || true   # service CIDR
     firewall-cmd --permanent --add-port=6443/tcp || true          # kube API
-    firewall-cmd --permanent --add-service=http || true
-    firewall-cmd --permanent --add-service=https || true
     firewall-cmd --reload || true
     echo "✅ firewalld configured for k3s."
 }
@@ -83,7 +81,13 @@ echo ""
 echo "📝 Next steps:"
 echo "   sudo bash linux/fedora/scripts/setup/30_hostkit.sh   # if hostkit is not installed yet"
 echo "   sudo hostkit cluster up                          # start k3s + ingress-nginx"
-echo "   # from app-skeleton repo:"
-echo "   ./deploy-prod.sh"
+echo ""
+echo "   Reset cluster (wipes all workloads + local-path data, then recreates):"
+echo "   sudo hostkit cluster reset --force --up"
+echo "   # or from app-skeleton: sudo ./bootstrap-scripts/prod/reset-k3s.sh --force"
+echo ""
+echo "   Redeploy after reset:"
+echo "   cd langfuse-platform && ./deploy.sh --reset-data --force"
+echo "   cd app-skeleton && ./deploy.sh"
 echo ""
 echo "✅ k3s host prep complete."

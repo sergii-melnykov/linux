@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
-# Firewalld port exposure and /etc/hosts management.
-
-HOSTKIT_HOSTS_MARKER="${HOSTKIT_HOSTS_MARKER:-hostkit-managed}"
+# Wire host-port docker-compose apps into ingress-nginx (reachable via Cloudflare Tunnel).
 
 hostkit_expose_help() {
   cat <<'EOF'
-hostkit expose - LAN port and hosts exposure
+hostkit expose - wire docker-compose apps into ingress-nginx
 
 Subcommands:
-  port PORT [tcp|udp] [--remove]   Open/close firewalld port and print LAN URLs
-  hosts --ip IP --host HOST...     Write managed /etc/hosts entries
+  docker-app --name NAME --port PORT --host HOST...
+                                              Wire a host-port docker-compose app into ingress-nginx
+  ingress-ip                                  Print the ingress-nginx LoadBalancer IP (diagnostic)
 
 Examples:
-  hostkit expose port 8080
-  hostkit expose port 443 tcp
-  hostkit expose hosts --ip 192.168.1.5 --host app.staging --host admin.app.staging
+  hostkit expose docker-app --name myapp --port 8081 --host myapp.example.com
+  hostkit expose docker-app --name myapp --port 8081 --host myapp.example.com --remove
 EOF
 }
 
@@ -23,11 +21,8 @@ hostkit_expose() {
   shift || true
 
   case "${sub}" in
-    port)
-      hostkit_expose_port "$@"
-      ;;
-    hosts)
-      hostkit_expose_hosts "$@"
+    docker-app)
+      hostkit_expose_docker_app "$@"
       ;;
     ingress-ip|resolve-ingress-ip)
       hostkit_expose_resolve_ingress_ip "$@" || exit 1
@@ -42,229 +37,6 @@ hostkit_expose() {
       exit 1
       ;;
   esac
-}
-
-hostkit_expose_port() {
-  local port=""
-  local proto="tcp"
-  local remove=false
-
-  for arg in "$@"; do
-    case "$arg" in
-      --remove|-r)
-        remove=true
-        ;;
-      tcp|udp)
-        proto="$arg"
-        ;;
-      -h|--help)
-        cat <<'EOF'
-hostkit expose port PORT [tcp|udp] [--remove]
-EOF
-        return 0
-        ;;
-      *)
-        if [[ -z "$port" && "$arg" =~ ^[0-9]+$ ]]; then
-          port="$arg"
-        else
-          hostkit_error "Unknown argument: $arg"
-          exit 1
-        fi
-        ;;
-    esac
-  done
-
-  if [[ -z "$port" ]]; then
-    hostkit_info "No port specified."
-    hostkit_expose_help
-    exit 0
-  fi
-
-  if (( port < 1 || port > 65535 )); then
-    hostkit_error "Invalid port: ${port} (must be 1-65535)"
-    exit 1
-  fi
-
-  hostkit_require_root
-  hostkit_expose_configure_firewalld "${port}" "${proto}" "${remove}"
-  hostkit_expose_check_listening "${port}" "${proto}"
-
-  mapfile -t lan_ips < <(hostkit_expose_detect_lan_ips)
-
-  echo ""
-  if $remove; then
-    hostkit_success "Port ${port}/${proto} is no longer exposed via firewalld."
-    return 0
-  fi
-
-  echo "App exposure summary:"
-  echo "   Port:     ${port}/${proto}"
-
-  if ((${#lan_ips[@]} > 0)); then
-    echo "   LAN IPs:"
-    for ip in "${lan_ips[@]}"; do
-      echo "     - ${ip}"
-    done
-    echo ""
-    echo "   Access from Linux, Windows, or mobile (same Wi-Fi/LAN):"
-    for ip in "${lan_ips[@]}"; do
-      echo "     http://${ip}:${port}/"
-    done
-  else
-    echo "   LAN IPs:  (none detected — check network connection)"
-    echo ""
-    echo "   Once connected, use: http://<host-lan-ip>:${port}/"
-  fi
-
-  echo ""
-  echo "   No client-side setup required — plain IP/port works everywhere."
-}
-
-hostkit_expose_configure_firewalld() {
-  local port="$1"
-  local proto="$2"
-  local remove="$3"
-
-  if ! systemctl is-active --quiet firewalld 2>/dev/null; then
-    hostkit_info "firewalld is not active; skipping firewall rules."
-    return 0
-  fi
-
-  if [[ "${remove}" == "true" ]]; then
-    hostkit_info "Closing ${port}/${proto} in firewalld..."
-    firewall-cmd --permanent --remove-port="${port}/${proto}" || true
-    firewall-cmd --reload || true
-    hostkit_success "Port ${port}/${proto} closed in firewalld."
-  else
-    hostkit_info "Opening ${port}/${proto} in firewalld..."
-    firewall-cmd --permanent --add-port="${port}/${proto}" || true
-    firewall-cmd --reload || true
-    hostkit_success "Port ${port}/${proto} opened in firewalld."
-  fi
-}
-
-hostkit_expose_is_virtual_interface() {
-  local iface="$1"
-  case "$iface" in
-    docker0|cni0|virbr*|flannel*|veth*)
-      return 0
-      ;;
-  esac
-  return 1
-}
-
-hostkit_expose_detect_lan_ips() {
-  local _ iface _addr addr
-  while read -r _ iface _ addr _; do
-    addr="${addr%%/*}"
-    if hostkit_expose_is_virtual_interface "$iface"; then
-      continue
-    fi
-    echo "$addr"
-  done < <(ip -4 -o addr show scope global 2>/dev/null)
-}
-
-hostkit_expose_check_listening() {
-  local port="$1"
-  local proto="$2"
-  local ss_args=(-H -ln)
-
-  if [[ "$proto" == "tcp" ]]; then
-    ss_args=(-H -tln)
-  else
-    ss_args=(-H -uln)
-  fi
-
-  local listeners
-  listeners="$(ss "${ss_args[@]}" "sport = :${port}" 2>/dev/null || true)"
-
-  if [[ -z "$listeners" ]]; then
-    hostkit_warn "Nothing is listening on ${port}/${proto} yet."
-    hostkit_info "Start your app first, then verify from another device."
-    return 0
-  fi
-
-  if [[ "$proto" == "tcp" ]]; then
-    if echo "$listeners" | grep -q '127.0.0.1:' && ! echo "$listeners" | grep -Eq '(\*|0\.0\.0\.0|\[::\]):'; then
-      hostkit_warn "Port ${port} is bound to 127.0.0.1 only."
-      hostkit_info "Configure the app to listen on 0.0.0.0 for LAN access."
-    fi
-  fi
-}
-
-hostkit_expose_hosts() {
-  local ip=""
-  local hosts_file="/etc/hosts"
-  local marker="${HOSTKIT_HOSTS_MARKER}"
-  local -a hosts=()
-
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --ip)
-        ip="${2:-}"
-        shift 2
-        ;;
-      --host)
-        hosts+=("${2:-}")
-        shift 2
-        ;;
-      --file)
-        hosts_file="${2:-}"
-        shift 2
-        ;;
-      --marker)
-        marker="${2:-}"
-        shift 2
-        ;;
-      -h|--help)
-        cat <<'EOF'
-hostkit expose hosts --ip IP --host HOST... [--file /etc/hosts]
-EOF
-        return 0
-        ;;
-      *)
-        hostkit_error "Unknown option: $1"
-        exit 1
-        ;;
-    esac
-  done
-
-  if [[ -z "${ip}" || ${#hosts[@]} -eq 0 ]]; then
-    hostkit_error "--ip and at least one --host are required."
-    exit 1
-  fi
-
-  hostkit_require_root
-
-  local begin="# BEGIN ${marker}"
-  local end="# END ${marker}"
-  local tmp
-  tmp="$(mktemp)"
-
-  if [[ -f "${hosts_file}" ]]; then
-    awk -v begin="${begin}" -v end="${end}" '
-      $0 == begin { skip=1; next }
-      $0 == end { skip=0; next }
-      skip==0 { print }
-    ' "${hosts_file}" > "${tmp}"
-  else
-    : > "${tmp}"
-  fi
-
-  {
-    cat "${tmp}"
-    echo "${begin}"
-    for domain in "${hosts[@]}"; do
-      echo "${ip} ${domain}"
-    done
-    echo "${end}"
-  } > "${tmp}.new"
-
-  install -m 644 "${tmp}.new" "${hosts_file}"
-  rm -f "${tmp}" "${tmp}.new"
-
-  hostkit_success "Updated ${hosts_file} for ${#hosts[@]} hostname(s) -> ${ip}"
-  grep -F "${marker}" -A "$(( ${#hosts[@]} + 1 ))" "${hosts_file}" || true
 }
 
 hostkit_expose_resolve_ingress_ip() {
@@ -288,4 +60,252 @@ hostkit_expose_resolve_ingress_ip() {
   fi
 
   return 1
+}
+
+hostkit_expose_docker_app_help() {
+  cat <<'EOF'
+hostkit expose docker-app - expose a docker-compose app via ingress-nginx
+
+Creates a selector-less Service + Endpoints (pointing at host IP:port) and an Ingress
+so the app is reachable through the same ingress-nginx / Cloudflare Tunnel as k8s apps.
+
+Usage:
+  hostkit expose docker-app --name NAME --port PORT --host HOSTNAME... [options]
+
+Options:
+  --name NAME              Kubernetes object name (Service/Endpoints/Ingress)
+  --port PORT              Host port the docker-compose app listens on
+  --host HOSTNAME          Public hostname for Ingress (repeatable)
+  --namespace NS           Namespace (default: default)
+  --service-port PORT      Service port exposed to Ingress (default: 80)
+  --host-ip IP             Override host IP (default: auto-detect)
+  --ingress-class NAME     IngressClass (default: nginx)
+  --tls-secret NAME        Existing TLS secret name for Ingress tls block
+  --kubeconfig PATH        Kubeconfig path (default: KUBECONFIG or /etc/rancher/k3s/k3s.yaml)
+  --remove                 Delete Service/Endpoints/Ingress instead of applying
+  -h, --help
+
+Examples:
+  hostkit expose docker-app --name myapp --port 8081 --host myapp.example.com
+  hostkit expose docker-app --name myapp --port 8081 --host myapp.example.com \
+    --tls-secret myapp-tls --namespace apps
+EOF
+}
+
+hostkit_expose_detect_host_ip() {
+  local ip
+  ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')"
+  if [[ -z "${ip}" ]]; then
+    hostkit_error "Could not auto-detect host IP. Pass --host-ip explicitly."
+    exit 1
+  fi
+  echo "${ip}"
+}
+
+hostkit_expose_docker_app_render_yaml() {
+  local name="$1"
+  local namespace="$2"
+  local host_ip="$3"
+  local port="$4"
+  local service_port="$5"
+  local ingress_class="$6"
+  local tls_secret="$7"
+  shift 7
+  local -a hostnames=("$@")
+
+  cat <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${name}
+  namespace: ${namespace}
+  labels:
+    app.kubernetes.io/managed-by: hostkit
+    app.kubernetes.io/component: docker-app
+spec:
+  ports:
+    - port: ${service_port}
+      targetPort: ${port}
+      protocol: TCP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ${name}
+  namespace: ${namespace}
+  labels:
+    app.kubernetes.io/managed-by: hostkit
+    app.kubernetes.io/component: docker-app
+subsets:
+  - addresses:
+      - ip: ${host_ip}
+    ports:
+      - port: ${port}
+        protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${name}
+  namespace: ${namespace}
+  labels:
+    app.kubernetes.io/managed-by: hostkit
+    app.kubernetes.io/component: docker-app
+spec:
+  ingressClassName: ${ingress_class}
+EOF
+
+  if [[ -n "${tls_secret}" ]]; then
+    cat <<EOF
+  tls:
+    - secretName: ${tls_secret}
+      hosts:
+EOF
+    local host
+    for host in "${hostnames[@]}"; do
+      echo "        - ${host}"
+    done
+  fi
+
+  echo "  rules:"
+  local host
+  for host in "${hostnames[@]}"; do
+    cat <<EOF
+    - host: ${host}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ${name}
+                port:
+                  number: ${service_port}
+EOF
+  done
+}
+
+hostkit_expose_docker_app() {
+  local name=""
+  local port=""
+  local namespace="default"
+  local service_port="80"
+  local host_ip=""
+  local ingress_class="nginx"
+  local tls_secret=""
+  local kubeconfig="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
+  local remove=false
+  local -a hostnames=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)
+        name="${2:-}"
+        shift 2
+        ;;
+      --port)
+        port="${2:-}"
+        shift 2
+        ;;
+      --host)
+        hostnames+=("${2:-}")
+        shift 2
+        ;;
+      --namespace)
+        namespace="${2:-}"
+        shift 2
+        ;;
+      --service-port)
+        service_port="${2:-}"
+        shift 2
+        ;;
+      --host-ip)
+        host_ip="${2:-}"
+        shift 2
+        ;;
+      --ingress-class)
+        ingress_class="${2:-}"
+        shift 2
+        ;;
+      --tls-secret)
+        tls_secret="${2:-}"
+        shift 2
+        ;;
+      --kubeconfig)
+        kubeconfig="${2:-}"
+        shift 2
+        ;;
+      --remove|-r)
+        remove=true
+        shift
+        ;;
+      -h|--help)
+        hostkit_expose_docker_app_help
+        return 0
+        ;;
+      *)
+        hostkit_error "Unknown option: $1"
+        hostkit_expose_docker_app_help
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "${name}" || -z "${port}" || ${#hostnames[@]} -eq 0 ]]; then
+    hostkit_error "--name, --port, and at least one --host are required."
+    hostkit_expose_docker_app_help
+    exit 1
+  fi
+
+  if ! [[ "${port}" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
+    hostkit_error "Invalid --port: ${port} (must be 1-65535)"
+    exit 1
+  fi
+
+  if ! [[ "${service_port}" =~ ^[0-9]+$ ]] || (( service_port < 1 || service_port > 65535 )); then
+    hostkit_error "Invalid --service-port: ${service_port} (must be 1-65535)"
+    exit 1
+  fi
+
+  hostkit_require_cmd kubectl
+
+  if [[ -z "${host_ip}" ]]; then
+    host_ip="$(hostkit_expose_detect_host_ip)"
+  fi
+
+  local kubectl_cmd=(kubectl --kubeconfig="${kubeconfig}")
+  local yaml
+  yaml="$(hostkit_expose_docker_app_render_yaml \
+    "${name}" "${namespace}" "${host_ip}" "${port}" "${service_port}" \
+    "${ingress_class}" "${tls_secret}" "${hostnames[@]}")"
+
+  if [[ "${remove}" == "true" ]]; then
+    hostkit_info "Removing Service/Endpoints/Ingress ${namespace}/${name}..."
+    echo "${yaml}" | "${kubectl_cmd[@]}" delete -f - --ignore-not-found
+    hostkit_success "Removed ${namespace}/${name} (Service, Endpoints, Ingress)."
+    return 0
+  fi
+
+  hostkit_info "Applying Service/Endpoints/Ingress ${namespace}/${name} -> ${host_ip}:${port}..."
+  echo "${yaml}" | "${kubectl_cmd[@]}" apply -f -
+
+  hostkit_success "docker-compose app exposed via ingress-nginx."
+  echo ""
+  echo "Summary:"
+  echo "   Name:         ${namespace}/${name}"
+  echo "   Backend:      ${host_ip}:${port}"
+  echo "   Hostnames:"
+  local host
+  for host in "${hostnames[@]}"; do
+    echo "     - ${host}"
+  done
+  echo ""
+  echo "Local test (via ingress-nginx):"
+  for host in "${hostnames[@]}"; do
+    echo "   curl -vk --resolve ${host}:443:127.0.0.1 https://${host}/"
+  done
+  echo ""
+  echo "Public access: add hostname(s) to your Cloudflare Tunnel:"
+  echo "   sudo hostkit tunnel install --name TUNNEL --hostname ${hostnames[0]} ..."
+  hostkit_warn "Ensure the docker-compose app listens on 0.0.0.0:${port}, not 127.0.0.1 only."
 }

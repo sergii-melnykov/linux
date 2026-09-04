@@ -62,8 +62,7 @@ Usage:
   hostkit cert ingress-default --secret NS/NAME [options]
   hostkit cert acme [options]
   hostkit cert renew
-  hostkit expose port PORT [tcp|udp] [--remove]
-  hostkit expose hosts --ip IP --host HOST... [options]
+  hostkit expose docker-app --name NAME --port PORT --host HOST... [options]
   hostkit tunnel install [options]
 
 Run `hostkit help <command>` for details.
