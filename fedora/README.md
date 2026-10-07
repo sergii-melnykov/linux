@@ -200,7 +200,14 @@ See `app-skeleton/bootstrap-scripts/prod/LAN-ACCESS.md` for details and limitati
 
 - **SSH** - SSH key generation and configuration
 
+### Optional scripts (manual)
+
+See [`scripts/optional/README.md`](scripts/optional/README.md). Not run by `setup.sh`.
+
+- **install-falcon.sh** — CrowdStrike Falcon agent (G2i Box packages + CID); Fedora-friendly `.deb` unpack + SELinux fix
+
 ---
+
 
 ## 🚀 Quick Install
 
