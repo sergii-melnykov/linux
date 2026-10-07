@@ -71,5 +71,5 @@ else
         echo "All scripts executed successfully."
     fi
 fi
-echo "Reboot required to finish VirtualBox installation (if installed)."
+echo "Reboot if you installed drivers or optional tools (e.g. VirtualBox, NVIDIA) that require it."
 echo "====================================="

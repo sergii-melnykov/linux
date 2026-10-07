@@ -116,13 +116,16 @@ hostkit_cluster_up() {
   hostkit_require_root
   hostkit_require_cmd curl
 
-  local config_changed=false
+  local k3s_config_changed=false
   if hostkit_cluster_write_config_yaml "${resolv_conf}" "${node_name}"; then
-    config_changed=true
+    k3s_config_changed=true
   fi
 
-  hostkit_cluster_write_registries_yaml "${registry}"
-  hostkit_cluster_ensure_k3s "${resolv_conf}" "${node_name}" "${config_changed}"
+  if hostkit_cluster_write_registries_yaml "${registry}"; then
+    k3s_config_changed=true
+  fi
+
+  hostkit_cluster_ensure_k3s "${resolv_conf}" "${node_name}" "${k3s_config_changed}"
   export KUBECONFIG="${kubeconfig}"
   hostkit_cluster_verify_node_name "${kubeconfig}" "${node_name}"
   hostkit_cluster_install_ingress_nginx "${ingress_version}" "${kubeconfig}"
@@ -246,10 +249,13 @@ EOF
 hostkit_cluster_write_registries_yaml() {
   local registry="$1"
   local registry_host="${registry%%/*}"
+  local registries_path="/etc/rancher/k3s/registries.yaml"
+  local tmp
+  tmp="$(mktemp)"
 
   hostkit_info "Configuring k3s insecure registry: ${registry_host}"
   mkdir -p /etc/rancher/k3s
-  cat > /etc/rancher/k3s/registries.yaml <<EOF
+  cat > "${tmp}" <<EOF
 mirrors:
   "${registry_host}":
     endpoint:
@@ -259,13 +265,22 @@ configs:
     tls:
       insecure_skip_verify: true
 EOF
-  hostkit_success "Wrote /etc/rancher/k3s/registries.yaml"
+
+  if [[ -f "${registries_path}" ]] && cmp -s "${tmp}" "${registries_path}"; then
+    rm -f "${tmp}"
+    return 1
+  fi
+
+  cat "${tmp}" > "${registries_path}"
+  rm -f "${tmp}"
+  hostkit_success "Wrote ${registries_path}"
+  return 0
 }
 
 hostkit_cluster_ensure_k3s() {
   local resolv_conf="$1"
   local node_name="$2"
-  local config_changed="${3:-false}"
+  local k3s_config_changed="${3:-false}"
   local exec_args="server --node-name=${node_name} --disable=traefik --write-kubeconfig-mode=644 --resolv-conf=${resolv_conf}"
 
   if command -v k3s >/dev/null 2>&1; then
@@ -281,8 +296,8 @@ hostkit_cluster_ensure_k3s() {
 
   systemctl enable k3s >/dev/null 2>&1 || true
 
-  if [[ "${config_changed}" == "true" ]] && systemctl is-active --quiet k3s 2>/dev/null; then
-    hostkit_info "k3s config changed — restarting to apply node-name=${node_name}..."
+  if [[ "${k3s_config_changed}" == "true" ]] && systemctl is-active --quiet k3s 2>/dev/null; then
+    hostkit_info "k3s config changed — restarting to apply config.yaml / registries.yaml..."
     systemctl restart k3s
   elif systemctl is-active --quiet k3s 2>/dev/null; then
     hostkit_info "k3s service is already running."

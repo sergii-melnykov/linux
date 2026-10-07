@@ -30,3 +30,23 @@ Repair permissions/SELinux and restart the service:
 Downloads and large artifacts stay in `.cache/` (gitignored).
 
 **Note:** Fedora may still report RFM if the kernel module is unsupported; use a supported OS for full compliance if your employer requires it.
+
+## VirtualBox (`install-virtualbox.sh`)
+
+Installs VirtualBox, builds signed kernel modules via `akmods`, and enrolls a MOK key when Secure Boot is enabled.
+
+```bash
+cd linux/fedora/scripts/optional
+sudo bash install-virtualbox.sh
+```
+
+After reboot: **Enroll MOK** in the boot menu and enter the password you set during `mokutil --import`.
+
+## Ollama (`install-ollama.sh`)
+
+Installs [Ollama](https://ollama.com) via the upstream install script (systemd service + CLI).
+
+```bash
+cd linux/fedora/scripts/optional
+sudo bash install-ollama.sh
+```

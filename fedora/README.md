@@ -23,7 +23,7 @@ A complete, modular automated setup for Fedora workstations. This setup includes
 - **Helm** - Kubernetes package manager (Helm 4 from Fedora repos)
 - **Minikube** - Local Kubernetes cluster (dev)
 - **Skaffold** - Kubernetes development workflow tool
-- **k3s** - Lightweight Kubernetes binary for home-server production (install-only; cluster provisioning is in app-skeleton)
+- **k3s** - Lightweight Kubernetes binary for home-server production (`27_k3s.sh` installs only; `hostkit cluster up` starts the cluster)
 - **mkcert** - Local TLS CA for `*.local` ingress hostnames
 - **Docker Registry** - Local, app-agnostic image registry (systemd, port 5000, Web UI on port 5080, auto-starts on boot)
 - **hostkit** - Agnostic CLI for k3s cluster bring-up, mkcert/ACME TLS, firewalld exposure, Cloudflare Tunnel
@@ -55,7 +55,7 @@ xdg-open http://localhost:5080   # or open in browser manually
 
 #### Kubernetes Deployment (home-server prod)
 
-These scripts install the **client tools and host prerequisites** needed by [app-skeleton/deploy-prod.sh](https://github.com/sergii-melnykov/app-skeleton) (k3s + Skaffold/Helm). They do **not** start the cluster. The local registry (above) is provisioned separately and is not app-skeleton-specific.
+These scripts install **client tools and host prerequisites** (k3s binary, Skaffold, Helm, local registry, **hostkit**). They do **not** start k3s — run `sudo hostkit cluster up` after setup. App deploys (e.g. [app-skeleton/deploy-prod.sh](https://github.com/sergii-melnykov/app-skeleton)) assume that cluster is up. The local registry is provisioned separately and is not app-specific.
 
 | Script | What it does |
 |--------|--------------|
@@ -102,7 +102,7 @@ cp k8s/helm/app-skeleton/values-prod-secrets.yaml.example k8s/helm/app-skeleton/
 
 **Host prep in `27_k3s.sh`:**
 
-- firewalld: trusts pod/service CIDRs (`10.42.0.0/16`, `10.43.0.0/16`), opens 6443/80/443
+- firewalld: trusts pod/service CIDRs (`10.42.0.0/16`, `10.43.0.0/16`), opens kube API **6443/tcp** (HTTP/HTTPS ingress is via Cloudflare Tunnel / localhost, not host firewalld ports)
 - NetworkManager: ignores `cni0`, `flannel*`, `veth*` interfaces
 - Kernel modules: persists `br_netfilter` and `overlay`
 - k3s resolver: `--resolv-conf=/run/systemd/resolve/resolv.conf`
@@ -171,10 +171,6 @@ sudo ./bootstrap-scripts/prod/setup-lan-access.sh   # opens :443, writes values-
 Then open `https://<lan-ip>/` from any device on the same Wi‑Fi (accept the browser cert warning).
 See `app-skeleton/bootstrap-scripts/prod/LAN-ACCESS.md` for details and limitations.
 
-### Virtualization
-
-- **VirtualBox** - With Secure Boot MOK key setup and kernel module signing
-
 ### Applications
 
 - **Google Chrome** - Web browser
@@ -193,7 +189,6 @@ See `app-skeleton/bootstrap-scripts/prod/LAN-ACCESS.md` for details and limitati
 
 - **NVIDIA Drivers** - Automatic detection and installation for NVIDIA GPUs
 - **GPU Application Config** - Configures Chrome and VS Code to use discrete GPU
-- **Ollama** - Local AI model runner
 - **Qdrant** - Vector database with FastEmbed GPU-accelerated embeddings (auto-starts on boot)
 
 ### Security
@@ -205,6 +200,8 @@ See `app-skeleton/bootstrap-scripts/prod/LAN-ACCESS.md` for details and limitati
 See [`scripts/optional/README.md`](scripts/optional/README.md). Not run by `setup.sh`.
 
 - **install-falcon.sh** — CrowdStrike Falcon agent (G2i Box packages + CID); Fedora-friendly `.deb` unpack + SELinux fix
+- **install-virtualbox.sh** — VirtualBox with Secure Boot MOK key setup and kernel module signing
+- **install-ollama.sh** — Local AI model runner (upstream `ollama.com/install.sh`)
 
 ---
 
@@ -233,28 +230,26 @@ The scripts in `scripts/setup/` run in numerical order (00-31, skipping 29). The
 6. **05_python.sh** - Python environment
 7. **06_vscode.sh** - Code editor
 8. **07_ssh.sh** - SSH setup
-9. **08_virtualbox.sh** - Virtualization platform
-10. **09_chrome.sh** - Web browser
-11. **11_skaffold.sh** - Kubernetes dev tool
-12. **12_docker.sh** - Container runtime
-13. **13_kubectl.sh** - Kubernetes CLI
-14. **14_minikube.sh** - Local Kubernetes (dev)
-15. **15_gnome_extensions.sh** - Desktop extensions
-16. **16_viber.sh** - Messaging app
-17. **17_telegram.sh** - Messaging app
-18. **18_nvidia_drivers.sh** - GPU drivers (auto-detects NVIDIA)
-19. **19_gpu_app_config.sh** - GPU application preferences
-20. **20_ollama.sh** - AI model runner
-21. **21_helm.sh** - Helm package manager
-22. **22_terminal.sh** - Terminal customization
-23. **23_wireshark.sh** - Network analyzer
-24. **24_rtk.sh** - RTK tooling
-25. **25_qdrant.sh** - Vector database with GPU-accelerated FastEmbed embeddings
-26. **26_mkcert.sh** - Local TLS CA for production ingress
-27. **27_k3s.sh** - k3s binary + host prep for home-server cluster
-28. **28_registry.sh** - Local Docker registry + Web UI (systemd, auto-starts on boot)
-29. **30_hostkit.sh** - hostkit CLI (cluster, TLS, exposure)
-30. **31_cloudflared.sh** - Cloudflare Tunnel client
+9. **09_chrome.sh** - Web browser
+10. **11_skaffold.sh** - Kubernetes dev tool
+11. **12_docker.sh** - Container runtime
+12. **13_kubectl.sh** - Kubernetes CLI
+13. **14_minikube.sh** - Local Kubernetes (dev)
+14. **15_gnome_extensions.sh** - Desktop extensions
+15. **16_viber.sh** - Messaging app
+16. **17_telegram.sh** - Messaging app
+17. **18_nvidia_drivers.sh** - GPU drivers (auto-detects NVIDIA)
+18. **19_gpu_app_config.sh** - GPU application preferences
+19. **21_helm.sh** - Helm package manager
+20. **22_terminal.sh** - Terminal customization
+21. **23_wireshark.sh** - Network analyzer
+22. **24_rtk.sh** - RTK tooling
+23. **25_qdrant.sh** - Vector database with GPU-accelerated FastEmbed embeddings
+24. **26_mkcert.sh** - Local TLS CA for production ingress
+25. **27_k3s.sh** - k3s binary + host prep for home-server cluster
+26. **28_registry.sh** - Local Docker registry + Web UI (systemd, auto-starts on boot)
+27. **30_hostkit.sh** - hostkit CLI (cluster, TLS, exposure)
+28. **31_cloudflared.sh** - Cloudflare Tunnel client
 
 ---
 
@@ -287,7 +282,6 @@ Scripts detect when run with `sudo` and configure settings for the actual user (
 ### Hardware Detection
 
 - **NVIDIA GPU**: Automatically detects and skips driver installation if no NVIDIA GPU is present
-- **Secure Boot**: VirtualBox setup includes MOK key generation for Secure Boot systems
 
 ---
 
@@ -304,16 +298,11 @@ Scripts detect when run with `sudo` and configure settings for the actual user (
 ### Required Actions
 
 1. **Reboot** - Required for:
-   - VirtualBox kernel modules
    - NVIDIA drivers
    - Docker group membership to take effect
+   - Optional VirtualBox (see `scripts/optional/install-virtualbox.sh` for MOK enrollment)
 
-2. **VirtualBox Secure Boot** - After reboot:
-   - Select "Enroll MOK" in the boot menu
-   - Enter the password you set during installation
-   - Continue to boot
-
-3. **GNOME Extensions** - After reboot:
+2. **GNOME Extensions** - After reboot:
    - Open the "Extensions" app
    - Enable/configure installed extensions
 
@@ -333,7 +322,7 @@ kubectl version --client
 helm version
 skaffold version
 minikube version
-k3s --version          # binary installed; cluster not started until setup-k3s.sh
+k3s --version          # binary installed; cluster not started until: sudo hostkit cluster up
 mkcert -CAROOT         # should point to ~/.local/share/mkcert (not /root)
 systemctl status docker-registry      # local registry, should be active/running
 systemctl status docker-registry-ui   # Web UI, should be active/running
